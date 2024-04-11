@@ -1,0 +1,219 @@
+#pragma once
+
+#include <cstddef>
+#include <iterator>
+
+template <typename T>
+class List {
+   public:
+    struct Node {
+        Node* next;
+        Node* prev;
+    };
+
+    struct NodeValue : public Node {
+        T value;
+    };
+
+    class Iterator {
+       public:
+        using iterator_category = std::bidirectional_iterator_tag;
+        using value_type = T;
+        using difference_type = std::ptrdiff_t;
+        using pointer = T*;
+        using reference = T&;
+
+        Iterator() : position_(nullptr) {
+        }
+
+        explicit Iterator(Node* ptr) : position_(ptr) {
+        }
+
+        Iterator& operator++() {
+            position_ = position_->next;
+            return *this;
+        }
+
+        Iterator operator++(int) {
+            Iterator temp = *this;
+            position_ = position_->next;
+            return temp;
+        }
+
+        Iterator& operator--() {
+            position_ = position_->prev;
+            return *this;
+        }
+
+        Iterator operator--(int) {
+            Iterator temp = *this;
+            position_ = position_->prev;
+            return temp;
+        }
+
+        T& operator*() const {
+            return static_cast<NodeValue*>(position_)->value;
+        }
+
+        T* operator->() const {
+            return &(static_cast<NodeValue*>(position_)->value);
+        }
+
+        bool operator==(const Iterator& other) const {
+            return position_ == other.position_;
+        }
+
+        bool operator!=(const Iterator& other) const {
+            return position_ != other.position_;
+        }
+
+        [[nodiscard]] Node* Get() const {
+            return position_;
+        }
+
+       private:
+        Node* position_;
+    };
+
+    List() : element_(new Node) {
+        element_->next = element_;
+        element_->prev = element_;
+    }
+
+    List(const List& other) : List() {  // NOLINT
+        auto haha = other.element_;
+        for (size_t i = 0; i < other.size_; ++i) {
+            haha = haha->next;
+            this->PushBack((*static_cast<NodeValue*>(haha)).value);
+        }
+    }
+
+    List(List&& other) noexcept : List() {  // NOLINT
+        Swap(other);
+    }
+
+    ~List() {
+        while (size_ != 0) {
+            PopBack();
+        }
+        delete element_;
+    }
+
+    List& operator=(const List& other) {
+        if (this == &other) {
+            return *this;
+        }
+        List t(other);
+        Swap(t);
+        return *this;
+    }
+
+    List& operator=(List&& other) noexcept {
+        if (this == &other) {
+            return *this;
+        }
+        Swap(other);
+        return *this;
+    }
+
+    [[nodiscard]] bool IsEmpty() const {
+        return size_ == 0;
+    }
+
+    [[nodiscard]] size_t Size() const {
+        return size_;
+    }
+
+    void PushBack(const T& t) {
+        auto* target = new NodeValue{{nullptr, nullptr}, t};  // NOLINT
+        LinkAfter(target, element_->prev);
+    }
+
+    void PushBack(T&& t) {
+        auto* target = new NodeValue{{nullptr, nullptr}, std::move(t)};  // NOLINT
+        LinkAfter(target, element_->prev);
+    }
+
+    void PushFront(const T& t) {
+        auto* target = new NodeValue{{nullptr, nullptr}, t};  // NOLINT
+        LinkAfter(target, element_);
+    }
+
+    void PushFront(T&& t) {
+        auto* target = new NodeValue{{nullptr, nullptr}, std::move(t)};  // NOLINT
+        LinkAfter(target, element_);
+    }
+
+    T& Front() {
+        return (*static_cast<NodeValue*>(element_->next)).value;
+    }
+
+    [[nodiscard]] const T& Front() const {
+        return (*static_cast<NodeValue*>(element_->next)).value;
+    }
+
+    T& Back() {
+        return (*static_cast<NodeValue*>(element_->prev)).value;
+    }
+
+    [[nodiscard]] const T& Back() const {
+        return (*static_cast<NodeValue*>(element_->prev)).value;
+    }
+
+    void PopBack() {
+        Unlink(element_->prev);
+    }
+
+    void PopFront() {
+        Unlink(element_->next);
+    }
+
+    void Erase(Iterator iter) {
+        Unlink(iter.Get());
+    }
+
+    [[nodiscard]] Iterator Begin() const {
+        return Iterator(element_->next);
+    }
+
+    [[nodiscard]] Iterator End() const {
+        return Iterator(element_);
+    }
+
+    void Swap(List<T>& other) {
+        std::swap(element_, other.element_);
+        std::swap(size_, other.size_);
+    }
+
+   private:
+    Node* element_;
+    size_t size_{0};
+
+    void Unlink(Node* node) {
+        if (element_->prev == element_) {
+            return;
+        }
+        --size_;
+        node->prev->next = node->next;
+        node->next->prev = node->prev;
+        delete static_cast<NodeValue*>(node);  // NOLINT
+    }
+
+    void LinkAfter(NodeValue* current, Node* after) {
+        ++size_;
+        after->next->prev = current;
+        current->next = after->next;
+        after->next = current;
+        current->prev = after;
+    }
+};
+
+template <typename T>
+typename List<T>::Iterator begin(List<T>& other) {
+    return other.Begin();
+}
+
+template <typename T>
+typename List<T>::Iterator end(List<T>& ot) {
+    return ot.End();
+}
