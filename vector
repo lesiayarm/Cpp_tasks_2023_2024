@@ -1,0 +1,277 @@
+#pragma once
+
+#include <cstddef>
+#include <initializer_list>
+#include <iterator>
+
+class Vector {
+   public:
+    Vector() : data_(nullptr), size_(0), capacity_(0) {
+    }  // конструктор по умолчанию
+
+    explicit Vector(size_t size) : data_(new int[size]), size_(size), capacity_(size) {
+        for (size_t i = 0; i < size; ++i) {
+            *std::next(data_, static_cast<int>(i)) = 0;
+        }
+    }  // Конструктор, принимающий размер вектора и заполняющий его нулями
+
+    Vector(std::initializer_list<int> init_list)
+        : data_(new int[init_list.size()])
+        , size_(init_list.size())
+        , capacity_(init_list.size()) {  // NOLINT(cppcoreguidelines-owning-memory)
+        size_t i = 0;
+        for (auto iter : init_list) {
+            *std::next(data_, static_cast<int>(i)) = iter;
+            ++i;
+        }
+    }  // Конструктор, принимающий список инициализации std::initializer_list<int>, что позволит
+       // писать Vector a = {1, 3, 5}.
+
+    Vector(const Vector& copy)
+        : data_(new int[copy.capacity_])
+        , size_(copy.capacity_)
+        , capacity_(copy.capacity_) {  // NOLINT(cppcoreguidelines-owning-memory)
+        for (size_t i = 0; i < size_; ++i) {
+            *std::next(data_, static_cast<int>(i)) = *std::next(copy.data_, static_cast<int>(i));
+        }
+    }  // Конструктор копирования
+
+    Vector(Vector&& other) noexcept
+        : data_(other.data_), size_(other.size_), capacity_(other.capacity_) {
+        other.data_ = nullptr;
+        other.size_ = 0;
+        other.capacity_ = 0;
+    }  // конструктор перемещения
+
+    Vector& operator=(const Vector& other) {
+        if (this != &other) {
+            Vector t(other);
+            Swap(t);
+        }
+        return *this;
+    }
+
+    Vector& operator=(Vector&& other) noexcept {
+        if (this != &other) {
+            delete[] data_;
+            data_ = other.data_;
+            size_ = other.size_;
+            capacity_ = other.capacity_;
+            other.data_ = nullptr;
+            other.size_ = 0;
+            other.capacity_ = 0;
+        }
+        return *this;
+    }
+
+    ~Vector() {
+        delete[] data_;
+    }
+
+    void Swap(Vector& other) {
+        std::swap(data_, other.data_);
+        std::swap(size_, other.size_);
+        std::swap(capacity_, other.capacity_);
+    }
+
+    int& operator[](size_t index) {
+        return *std::next(data_, static_cast<int>(index));
+    }
+
+    const int& operator[](size_t index) const {
+        return *std::next(data_, static_cast<int>(index));
+    }
+
+    [[nodiscard]] size_t Size() const {
+        return size_;
+    }
+
+    [[nodiscard]] size_t Capacity() const {
+        return capacity_;
+    }
+
+    void PushBack(int element) {
+        if (size_ == capacity_) {
+            size_t new_capacity = 0;
+            if (capacity_ == 0) {
+                new_capacity = 1;
+            } else {
+                new_capacity = capacity_ * 2;
+            }
+            int* new_data = new int[new_capacity];  // NOLINT(cppcoreguidelines-owning-memory)
+            for (size_t i = 0; i < size_; ++i) {
+                *std::next(new_data, static_cast<int>(i)) = *std::next(data_, static_cast<int>(i));
+            }
+            delete[] data_;
+            data_ = new_data;
+            capacity_ = new_capacity;
+        }
+        *std::next(data_, static_cast<int>(size_)) = element;
+        ++size_;
+    }
+
+    void PopBack() {
+        if (size_ > 0) {
+            --size_;
+        }
+    }
+
+    void Clear() {
+        size_ = 0;
+    }
+
+    void Reserve(size_t new_capacity) {
+        if (capacity_ >= new_capacity) {
+            return;
+        }
+        int* new_vector = new int[new_capacity];  // NOLINT(cppcoreguidelines-owning-memory)
+        for (size_t i = 0; i < size_; ++i) {
+            *std::next(new_vector, static_cast<int>(i)) = *std::next(data_, static_cast<int>(i));
+        }
+        delete[] data_;
+        data_ = new_vector;
+        capacity_ = new_capacity;
+    }
+
+    class Iterator {
+       public:
+        using iterator_category = std::random_access_iterator_tag;
+        using value_type = int;
+        using difference_type = ptrdiff_t;
+        using pointer = int*;
+        using reference = int&;
+
+        Iterator() : position_(nullptr) {
+        }
+
+        explicit Iterator(int* ptr) : position_(ptr) {
+        }
+
+        Iterator(const Iterator& other) = default;
+
+        Iterator(Iterator&& other) noexcept : position_(std::__exchange(other.position_, nullptr)) {
+        }
+
+        ~Iterator() = default;
+
+        Iterator& operator=(Iterator&& other) noexcept {
+            if (this != &other) {
+                position_ = std::__exchange(other.position_, nullptr);
+            }
+            return *this;
+        }
+
+        Iterator& operator=(const Iterator& other) {
+            if (this != &other) {
+                position_ = other.position_;
+            }
+            return *this;
+        }
+
+        reference operator*() const {
+            return *position_;
+        }
+
+        pointer operator->() const {
+            return position_;
+        }
+
+        reference operator[](difference_type n) const {
+            return position_[n];
+        }
+
+        bool operator==(const Iterator& other) const {
+            return position_ == other.position_;
+        }
+
+        bool operator!=(const Iterator& other) const {
+            return position_ != other.position_;
+        }
+
+        Iterator& operator++() {
+            ++position_;
+            return *this;
+        }
+
+        Iterator operator++(int) {
+            Iterator temp = *this;
+            ++position_;
+            return temp;
+        }
+
+        Iterator& operator--() {
+            --position_;
+            return *this;
+        }
+
+        Iterator operator--(int) {
+            Iterator temp = *this;
+            --position_;
+            return temp;
+        }
+
+        Iterator operator+(difference_type n) const {
+            return Iterator(position_ + n);
+        }
+
+        Iterator operator-(difference_type n) const {
+            return Iterator(position_ - n);
+        }
+
+        Iterator& operator+=(difference_type n) {
+            position_ += n;
+            return *this;
+        }
+
+        Iterator& operator-=(difference_type n) {
+            position_ -= n;
+            return *this;
+        }
+
+        friend Iterator operator+(difference_type n, const Iterator& it) {
+            return it + n;
+        }
+
+        friend Iterator operator-(difference_type n, const Iterator& it) {
+            return it - n;
+        }
+
+        difference_type operator-(const Iterator& other) const {
+            return position_ - other.position_;
+        }
+
+        bool operator<(const Iterator& other) {
+            return position_ < other.position_;
+        }
+
+        bool operator<=(const Iterator& other) {
+            return position_ <= other.position_;
+        }
+
+        bool operator>(const Iterator& other) {
+            return position_ > other.position_;
+        }
+
+        bool operator>=(const Iterator& other) {
+            return position_ >= other.position_;
+        }
+
+        auto operator<=>(const Iterator&) const = default;
+
+       private:
+        pointer position_;  // указатель на текущий элемент
+    };
+
+    [[nodiscard]] Iterator begin() const {
+        return Iterator(data_);
+    }
+
+    [[nodiscard]] Iterator end() const {
+        return Iterator(std::next(data_, static_cast<int>(size_)));
+    }
+
+   private:
+    int* data_;    // массив элементов
+    size_t size_;  // текущее число элементов
+    size_t capacity_;
+};
