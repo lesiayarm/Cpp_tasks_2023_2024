@@ -1,0 +1,25 @@
+#pragma once
+
+#include <stdexcept>
+#include <string>
+#include <vector>
+
+inline std::vector<std::string> Split(const std::string& string, const std::string& delimiter) {
+    std::vector<std::string> result;
+    if (delimiter.size() == string.size()) {
+        result.emplace_back("");
+        result.emplace_back("");
+        return result;
+    }
+    uint64_t begin_value = 0;
+    uint64_t end_value = 0;
+    while (string.find(delimiter, begin_value) != std::string::npos) {
+        end_value = string.find(delimiter, begin_value);
+        result.push_back(string.substr(begin_value, end_value - begin_value));
+        begin_value = end_value + delimiter.size();
+    }
+    if (!string.empty()) {
+        result.push_back(string.substr(begin_value));
+    }
+    return result;
+}
